@@ -1,4 +1,11 @@
+## The Blurb
+
+The Tic-Tac-Toe model is designed to determine the optimal move for any given valid Tic-Tac-Toe board. It is implemented in Python using the PyTorch library. To train the model, we use a program that generates various board states along with their corresponding optimal moves.
+
+
 ### README for Tic-Tac-Toe Model Training with PyTorch
+
+This is for files Data.py, loadData.py, and NNTicTacToe.py
 
 This project aims to train a neural network to predict the optimal move for a given Tic-Tac-Toe board using PyTorch. The dataset consists of various board configurations and their optimal moves, generated using the earlier Tic-Tac-Toe data generation code. The neural network model is trained to predict the best move based on the current board state.
 
@@ -82,11 +89,8 @@ pip install torch
    - Before training, you must generate the Tic-Tac-Toe dataset using the earlier data generation script. Ensure that the `tic_tac_toe_data.txt` file is available in the working directory.
 
 2. **Train the Model**:
-   - Run the following script to train the model:
+   - Run the loadData.py then the NNTicTacToe.py file to train the model.
    
-     ```python
-     train(model, optimizer, criterion, epochs=20, train_loader=train_loader, val_loader=val_loader)
-     ```
 
 3. **Monitoring**:
    - The training script will output the loss and validation accuracy after each epoch. If the validation accuracy reaches 90% or higher, the training will stop early.
@@ -107,8 +111,6 @@ Target reached!
 ---
 
 ## Notes
-
-- **Model Saving**: You can add functionality to save the trained model to a file (e.g., using `torch.save(model.state_dict(), 'tic_tac_toe_model.pth')`) for later use.
   
 - **Evaluation**: After training, you can use the model to predict moves on new Tic-Tac-Toe boards.
 
