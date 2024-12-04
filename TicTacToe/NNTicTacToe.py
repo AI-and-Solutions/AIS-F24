@@ -61,5 +61,9 @@ def train(model, optimizer, criterion, epochs, train_loader, val_loader):
             print("Target reached!")
             break
 
+        # Save the trained model
+    torch.save(model.state_dict(), "model.pth")
+    print("Model saved as model.pth")
+
 # Train the model
 train(model, optimizer, criterion, epochs=20, train_loader=train_loader, val_loader=val_loader)

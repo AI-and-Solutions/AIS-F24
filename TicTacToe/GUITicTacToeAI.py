@@ -1,135 +1,137 @@
 import pygame
 import torch
-from NNTicTacToe import TicTacToeNN  # Assuming your model is saved in a file named 'model.py'
+import numpy as np
+from NNTicTacToe import TicTacToeNN
 
-# Initialize Pygame
+# Initialize PyGame
 pygame.init()
 
 # Constants
-SCREEN_SIZE = 600
-GRID_SIZE = 3
-CELL_SIZE = SCREEN_SIZE // GRID_SIZE
+WIDTH, HEIGHT = 300, 300
 LINE_WIDTH = 5
-CIRCLE_RADIUS = CELL_SIZE // 3
-CIRCLE_WIDTH = 10
-CROSS_WIDTH = 10
-FONT_SIZE = 60
+BOARD_ROWS, BOARD_COLS = 3, 3
+SQUARE_SIZE = WIDTH // BOARD_COLS
+CIRCLE_RADIUS = SQUARE_SIZE // 3
+CIRCLE_WIDTH = 15
+CROSS_WIDTH = 25
+SPACE = SQUARE_SIZE // 4
 
 # Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
+BG_COLOR = (28, 170, 156)
+LINE_COLOR = (23, 145, 135)
+CIRCLE_COLOR = (239, 231, 200)
+CROSS_COLOR = (66, 66, 66)
 
-# Initialize the screen
-screen = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
-pygame.display.set_caption("Tic Tac Toe: AI vs Human")
-
-# Font
-font = pygame.font.Font(None, FONT_SIZE)
+# PyGame screen setup
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Tic Tac Toe")
+screen.fill(BG_COLOR)
 
 # Board
-EMPTY = 0
-HUMAN = 1
-AI = -1
+board = np.zeros((BOARD_ROWS, BOARD_COLS))  # 0 = empty, 1 = player, -1 = AI
 
-def draw_board(board):
-    screen.fill(WHITE)
+# Model
+model = TicTacToeNN()
+model.load_state_dict(torch.load("model.pth"))  # Ensure your trained model file is here
+model.eval()
 
-    # Draw grid lines
-    for i in range(1, GRID_SIZE):
-        pygame.draw.line(screen, BLACK, (0, i * CELL_SIZE), (SCREEN_SIZE, i * CELL_SIZE), LINE_WIDTH)
-        pygame.draw.line(screen, BLACK, (i * CELL_SIZE, 0), (i * CELL_SIZE, SCREEN_SIZE), LINE_WIDTH)
+def draw_lines():
+    """Draw the grid lines on the board."""
+    for row in range(1, BOARD_ROWS):
+        pygame.draw.line(screen, LINE_COLOR, (0, row * SQUARE_SIZE), (WIDTH, row * SQUARE_SIZE), LINE_WIDTH)
+    for col in range(1, BOARD_COLS):
+        pygame.draw.line(screen, LINE_COLOR, (col * SQUARE_SIZE, 0), (col * SQUARE_SIZE, HEIGHT), LINE_WIDTH)
 
-    # Draw Xs and Os
-    for row in range(GRID_SIZE):
-        for col in range(GRID_SIZE):
-            center = (col * CELL_SIZE + CELL_SIZE // 2, row * CELL_SIZE + CELL_SIZE // 2)
-            if board[row][col] == HUMAN:
-                pygame.draw.line(screen, BLUE, (center[0] - CIRCLE_RADIUS, center[1] - CIRCLE_RADIUS),
-                                 (center[0] + CIRCLE_RADIUS, center[1] + CIRCLE_RADIUS), CROSS_WIDTH)
-                pygame.draw.line(screen, BLUE, (center[0] - CIRCLE_RADIUS, center[1] + CIRCLE_RADIUS),
-                                 (center[0] + CIRCLE_RADIUS, center[1] - CIRCLE_RADIUS), CROSS_WIDTH)
-            elif board[row][col] == AI:
-                pygame.draw.circle(screen, RED, center, CIRCLE_RADIUS, CIRCLE_WIDTH)
+def draw_figures():
+    """Draw the current board state."""
+    for row in range(BOARD_ROWS):
+        for col in range(BOARD_COLS):
+            if board[row, col] == 1:
+                pygame.draw.circle(screen, CIRCLE_COLOR, (int(col * SQUARE_SIZE + SQUARE_SIZE // 2), 
+                                                          int(row * SQUARE_SIZE + SQUARE_SIZE // 2)), CIRCLE_RADIUS, CIRCLE_WIDTH)
+            elif board[row, col] == -1:
+                pygame.draw.line(screen, CROSS_COLOR, (col * SQUARE_SIZE + SPACE, row * SQUARE_SIZE + SPACE), 
+                                 (col * SQUARE_SIZE + SQUARE_SIZE - SPACE, row * SQUARE_SIZE + SQUARE_SIZE - SPACE), CROSS_WIDTH)
+                pygame.draw.line(screen, CROSS_COLOR, (col * SQUARE_SIZE + SPACE, row * SQUARE_SIZE + SQUARE_SIZE - SPACE), 
+                                 (col * SQUARE_SIZE + SQUARE_SIZE - SPACE, row * SQUARE_SIZE + SPACE), CROSS_WIDTH)
 
-def check_winner(board):
-    # Check rows, columns, and diagonals for a winner
-    for row in range(GRID_SIZE):
-        if abs(sum(board[row])) == 3:
-            return board[row][0]
+def mark_square(row, col, player):
+    """Mark a square on the board."""
+    board[row, col] = player
 
-    for col in range(GRID_SIZE):
-        if abs(sum(board[row][col] for row in range(GRID_SIZE))) == 3:
-            return board[0][col]
+def available_square(row, col):
+    """Check if a square is available."""
+    return board[row, col] == 0
 
-    if abs(sum(board[i][i] for i in range(GRID_SIZE))) == 3:
-        return board[0][0]
+def is_board_full():
+    """Check if the board is full."""
+    return not (board == 0).any()
 
-    if abs(sum(board[i][GRID_SIZE - i - 1] for i in range(GRID_SIZE))) == 3:
-        return board[0][GRID_SIZE - 1]
+def check_winner(player):
+    """Check if a player has won."""
+    for row in range(BOARD_ROWS):
+        if np.all(board[row, :] == player):
+            return True
+    for col in range(BOARD_COLS):
+        if np.all(board[:, col] == player):
+            return True
+    if np.all(np.diag(board) == player) or np.all(np.diag(np.fliplr(board)) == player):
+        return True
+    return False
 
-    if all(board[row][col] != EMPTY for row in range(GRID_SIZE) for col in range(GRID_SIZE)):
-        return 0  # Draw
-
-    return None  # No winner yet
-
-def get_ai_move(board, model):
-    flat_board = [cell for row in board for cell in row]
-    board_tensor = torch.tensor(flat_board, dtype=torch.float32).unsqueeze(0)
-    model.eval()
+def ai_move():
+    """Determine the AI's move using the trained model."""
+    board_flat = board.flatten()
+    board_tensor = torch.tensor(board_flat, dtype=torch.float32).unsqueeze(0)  # Batch of 1
     with torch.no_grad():
-        output = model(board_tensor)
-    move = torch.argmax(output).item()
-    return divmod(move, GRID_SIZE)  # Convert index to (row, col)
+        predictions = model(board_tensor)
+    move = torch.argmax(predictions).item()
+    row, col = divmod(move, BOARD_COLS)
+    while not available_square(row, col):  # Find a valid move
+        predictions[0, move] = -float('inf')  # Penalize invalid moves
+        move = torch.argmax(predictions).item()
+        row, col = divmod(move, BOARD_COLS)
+    return row, col
 
-def main():
-    # Initialize board
-    board = [[EMPTY] * GRID_SIZE for _ in range(GRID_SIZE)]
+# Game loop
+draw_lines()
+player = 1
+game_over = False
 
-    # Load the trained model
-    
-    model = TicTacToeNN()
-    state_dict = torch.load("C:/Users/vadiwa/Documents/GitHub/AIS-F24/NNTicTacToe.py")
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            exit()
+        if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
+            mouseX, mouseY = event.pos
+            clicked_row, clicked_col = mouseY // SQUARE_SIZE, mouseX // SQUARE_SIZE
 
-# Load the state dictionary into the model
-    model.load_state_dict(state_dict)
+            if available_square(clicked_row, clicked_col):
+                mark_square(clicked_row, clicked_col, player)
+                draw_figures()
 
-    # Main game loop
-    running = True
-    current_player = HUMAN
-    winner = None
+                if check_winner(player):
+                    print("Player wins!" if player == 1 else "AI wins!")
+                    game_over = True
+                elif is_board_full():
+                    print("It's a draw!")
+                    game_over = True
+                else:
+                    player *= -1  # Switch player
 
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+        if player == -1 and not game_over:  # AI's turn
+            row, col = ai_move()
+            mark_square(row, col, player)
+            draw_figures()
 
-            if event.type == pygame.MOUSEBUTTONDOWN and current_player == HUMAN and winner is None:
-                x, y = event.pos
-                row, col = y // CELL_SIZE, x // CELL_SIZE
-                if board[row][col] == EMPTY:
-                    board[row][col] = HUMAN
-                    winner = check_winner(board)
-                    current_player = AI
+            if check_winner(player):
+                print("Player wins!" if player == 1 else "AI wins!")
+                game_over = True
+            elif is_board_full():
+                print("It's a draw!")
+                game_over = True
+            else:
+                player *= -1  # Switch player
 
-        if current_player == AI and winner is None:
-            row, col = get_ai_move(board, model)
-            if board[row][col] == EMPTY:
-                board[row][col] = AI
-                winner = check_winner(board)
-                current_player = HUMAN
-
-        draw_board(board)
-
-        if winner is not None:
-            text = "Draw!" if winner == 0 else ("You Win!" if winner == HUMAN else "AI Wins!")
-            text_surface = font.render(text, True, BLACK)
-            screen.blit(text_surface, (SCREEN_SIZE // 2 - text_surface.get_width() // 2, SCREEN_SIZE // 2 - FONT_SIZE // 2))
-
-        pygame.display.flip()
-
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
+    pygame.display.update()
