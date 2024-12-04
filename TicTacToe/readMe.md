@@ -1,3 +1,8 @@
+## The Blurb
+
+The Tic-Tac-Toe model is designed to determine the optimal move for any given valid Tic-Tac-Toe board. It is implemented in Python using the PyTorch library. To train the model, we use a program that generates various board states along with their corresponding optimal moves.
+
+
 ### README for Tic-Tac-Toe Model Training with PyTorch
 
 This is for files Data.py, loadData.py, and NNTicTacToe.py
